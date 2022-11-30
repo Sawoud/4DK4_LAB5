@@ -34,7 +34,7 @@
 #define MEAN_CALL_DURATION 3 /* minutes */
 #define RUNLENGTH 5e6 /* number of successful calls */
 #define BLIPRATE 1e3
-#define NUMBER_OF_CHANNELS 11
+#define NUMBER_OF_CHANNELS 2
 
 /* Comma separated list of random seeds to run. */
 #define RANDOM_SEED_LIST 333, 4444, 55555

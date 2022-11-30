@@ -71,26 +71,43 @@ call_arrival_event(Simulation_Run_Ptr simulation_run, void * ptr)
   sim_data = simulation_run_data(simulation_run);
   sim_data->call_arrival_count++;
 
-  /* See if there is a free channel.*/
-  if((free_channel = get_free_channel(simulation_run)) != NULL) {
-
-    /* Yes, we found one. Allocate some memory and start the call. */
-    new_call = (Call_Ptr) xmalloc(sizeof(Call));
-    new_call->arrive_time = now;
-    new_call->call_duration = get_call_duration();
-
-    /* Place the call in the free channel and schedule its
-       departure. */
-    server_put(free_channel, (void*) new_call);
-    new_call->channel = free_channel;
-
-    schedule_end_call_on_channel_event(simulation_run,
-				       now + new_call->call_duration,
-				       (void *) free_channel);
-  } else {
-    /* No free channel was found. The call is blocked. */
-    sim_data->blocked_call_count++;
+  if (rand() % 10 < 4) {
+	  if (/*if the channel is free*/) {
+	  //start transmisstion
+	  }
+	  else {
+	  //put in que
+	  }
   }
+  else {
+	  if (/*if the channel is free*/) {
+		  //start transmisstion
+	  }
+	  else {
+		  //put in que
+	  }
+  }
+  
+  /* See if there is a free channel.*/
+  //if((free_channel = get_free_channel(simulation_run)) != NULL) {
+
+  //  /* Yes, we found one. Allocate some memory and start the call. */
+  //  new_call = (Call_Ptr) xmalloc(sizeof(Call));
+  //  new_call->arrive_time = now;
+  //  new_call->call_duration = get_call_duration();
+
+  //  /* Place the call in the free channel and schedule its
+  //     departure. */
+  //  server_put(free_channel, (void*) new_call);
+  //  new_call->channel = free_channel;
+
+  //  schedule_end_call_on_channel_event(simulation_run,
+		//		       now + new_call->call_duration,
+		//		       (void *) free_channel);
+  //} else {
+  //  /* No free channel was found. The call is blocked. */
+  //  sim_data->blocked_call_count++;
+  //}
 
   /* Schedule the next call arrival. */
   schedule_call_arrival_event(simulation_run,

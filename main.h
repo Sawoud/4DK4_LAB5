@@ -48,7 +48,8 @@ typedef struct _call_
 
 typedef struct _simulation_run_data_
 {
-  Channel_Ptr * channels;
+  Channel_Ptr * channel1;
+  Channel_Ptr * channel2;
   long int blip_counter;
   long int call_arrival_count;
   long int calls_processed;

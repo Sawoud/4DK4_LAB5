@@ -75,13 +75,17 @@ int main(void)
     data.random_seed = random_seed;
 
     /* Create the channels. */
-    data.channels = (Channel_Ptr *) xcalloc((int) NUMBER_OF_CHANNELS,
+    data.channel1 = (Channel_Ptr *) xcalloc((int) 1,
 					    sizeof(Channel_Ptr));
+    data.channel1 = (Channel_Ptr*)xcalloc((int)1,
+        sizeof(Channel_Ptr));
 
     /* Initialize the channels. */
-    for (i=0; i<NUMBER_OF_CHANNELS; i++) {
-      *(data.channels+i) = server_new(); 
-    }
+    //for (i=0; i<NUMBER_OF_CHANNELS; i++) { // set to 2
+    //  *(data.channels+i) = server_new(); 
+    //}
+    data.channel1 = server_new();
+    data.channel2 = server_new();
 
     /* Set the random number generator seed. */
     random_generator_initialize((unsigned) random_seed);
