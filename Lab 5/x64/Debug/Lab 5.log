@@ -1,0 +1,10 @@
+﻿  channel.c
+  cleanup.c
+  main.c
+  output.c
+  packet_arrival.c
+  packet_duration.c
+  packet_transmission.c
+  simlib.c
+  Generating Code...
+  Lab 5.vcxproj -> C:\Users\Fernando\Documents\GitHub\4DK4_LAB5\Lab 5\x64\Debug\Lab 5.exe

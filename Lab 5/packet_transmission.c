@@ -126,22 +126,22 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
         ///* Schedule data packet arrival if S-ALOHA is successful **************************************************/
 
         Packet_Ptr new_packet;
-        Fifoqueue_Ptr data_buffer;
+        Fifoqueue_Ptr upload_buffer;
+        Channel_Ptr upload_channel;
 
-        new_packet = (Packet_Ptr)xmalloc(sizeof(Packet));
-        new_packet->arrive_time = now;
-        new_packet->service_time = exponential_generator((double)MEAN_DATA_PACKET_DURATION);
-        new_packet->status = WAITING;
+        new_packet = this_packet;
 
         /* Put packet in queue */
-        data_buffer = data->data_queue;
-        fifoqueue_put(data_buffer, (void*)new_packet);
+        upload_buffer = data->upload_queue;
+        fifoqueue_put(upload_buffer, (void*)new_packet);
         
-        /* If this is the only packet at the station, transmit it (i.e., the
-        ALOHA protocol). It stays in the queue either way. */
-        if (fifoqueue_size(data_buffer) == 1) {
-            /* Transmit the packet. */
-            schedule_transmission_start_event_data(simulation_run, now, (void*)new_packet);
+        /* If upload channel is free, upload the packet*/
+        upload_channel = data->upload_channel;
+        
+        /* If this is the only packet at the station, upload it */
+        if (fifoqueue_size(upload_buffer) == 1) {
+            /* Upload the packet. */
+            schedule_transmission_start_event_upload(simulation_run, now, (void*)new_packet);
         }
         /**********************************************************************************************************/
         
@@ -194,7 +194,7 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
   /******************************************************************************************************************/
 
   long int
-      schedule_transmission_start_event_data(Simulation_Run_Ptr simulation_run,
+      schedule_transmission_start_event_upload(Simulation_Run_Ptr simulation_run,
           Time event_time,
           void* packet)
   {
@@ -210,7 +210,7 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
   /*******************************************************************************/
 
   void
-      transmission_start_event_data(Simulation_Run_Ptr simulation_run, void* ptr)
+      transmission_start_event_upload(Simulation_Run_Ptr simulation_run, void* ptr)
   {
       Packet_Ptr this_packet;
       Simulation_Run_Data_Ptr data;
@@ -218,7 +218,7 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
 
       this_packet = (Packet_Ptr)ptr;
       data = (Simulation_Run_Data_Ptr)simulation_run_data(simulation_run);
-      channel = data->data_channel;
+      channel = data->upload_channel;
 
       /* This packet is starting to transmit. */
       this_packet->status = TRANSMITTING;
@@ -226,11 +226,11 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
       if (get_channel_state(channel) == IDLE) {
           /* The channel is successful, for now. */
           set_channel_state(channel, SUCCESS);
-          
+
           /* Schedule the end of packet transmission event.*/
           schedule_transmission_end_event_data(simulation_run,
-               simulation_run_get_time(simulation_run) +
-               this_packet->service_time, (void*)this_packet);
+              simulation_run_get_time(simulation_run) +
+              this_packet->upload_time, (void*)this_packet);
       }
 
   }
@@ -238,7 +238,7 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
   /*******************************************************************************/
 
   long int
-      schedule_transmission_end_event_data(Simulation_Run_Ptr simulation_run,
+      schedule_transmission_end_event_upload(Simulation_Run_Ptr simulation_run,
           Time event_time,
           void* packet)
   {
@@ -254,7 +254,7 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
   /*******************************************************************************/
 
   void
-      transmission_end_event_data(Simulation_Run_Ptr simulation_run, void* packet)
+      transmission_end_event_upload(Simulation_Run_Ptr simulation_run, void* packet)
   {
       Packet_Ptr this_packet, next_packet;
       Buffer_Ptr buffer;
@@ -263,12 +263,12 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
       Channel_Ptr channel;
 
       data = (Simulation_Run_Data_Ptr)simulation_run_data(simulation_run);
-      channel = data->data_channel;
+      channel = data->upload_channel;
 
       now = simulation_run_get_time(simulation_run);
 
       this_packet = (Packet_Ptr)packet;
-      buffer = data->data_queue;
+      buffer = data->upload_queue;
 
       /* Check if the packet was successful. */
       if (get_channel_state(channel) == SUCCESS) {
