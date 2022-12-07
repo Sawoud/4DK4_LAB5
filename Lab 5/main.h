@@ -45,7 +45,10 @@ typedef struct _station_
 {
   int id;
   Buffer_Ptr buffer;
-  long int packet_count;
+  long int arrival_count;
+  long int packets_transmitted;
+  long int packets_processed;
+  long int number_of_collisions;
   double accumulated_delay;
   double mean_delay;
 } Station, * Station_Ptr;
@@ -68,15 +71,15 @@ typedef struct _simulation_run_data_
 {
   Station_Ptr stations;
   Channel_Ptr channel;
-  Fifoqueue_Ptr upload_queue;
-  Channel_Ptr upload_channel;
+  Fifoqueue_Ptr cloud_server_queue;
+  Server_Ptr cloud_server;
   long int blip_counter;
   long int arrival_count;
+  long int packets_transmitted;
   long int packets_processed;
-  long int number_of_packets_processed;
   long int number_of_collisions;
   double accumulated_delay;
-  double data_accumulated_delay;
+
   unsigned random_seed;
 } Simulation_Run_Data, * Simulation_Run_Data_Ptr;
 

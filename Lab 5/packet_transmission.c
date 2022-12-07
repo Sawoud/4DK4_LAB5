@@ -29,7 +29,9 @@
 #include "channel.h"
 #include "packet_transmission.h"
 
-/*******************************************************************************/
+/****************************************************************************************************************
+Transmission start event for transmitting packets from mobile device to base station
+*/
 
 long int
 schedule_transmission_start_event(Simulation_Run_Ptr simulation_run,
@@ -44,8 +46,6 @@ schedule_transmission_start_event(Simulation_Run_Ptr simulation_run,
 
   return simulation_run_schedule_event(simulation_run, event, event_time);
 }
-
-/*******************************************************************************/
 
 void
 transmission_start_event(Simulation_Run_Ptr simulation_run, void * ptr)
@@ -70,14 +70,16 @@ transmission_start_event(Simulation_Run_Ptr simulation_run, void * ptr)
     set_channel_state(channel, SUCCESS);
   }
 
-  /* Schedule the end of packet transmission event. */
+  /* Schedule the end of packet transmission event (S-ALOHA). */
   schedule_transmission_end_event(simulation_run,
 				  simulation_run_get_time(simulation_run) + 
-				  this_packet->service_time + GUARD_TIME,
+				  this_packet->upload_time + GUARD_TIME,
 				  (void *) this_packet);
 }
 
-/*******************************************************************************/
+/******************************************************************************
+Transmission end event for transmitting packets from mobile device to base station
+*/
 
 long int
 schedule_transmission_end_event(Simulation_Run_Ptr simulation_run,
@@ -92,8 +94,6 @@ schedule_transmission_end_event(Simulation_Run_Ptr simulation_run,
 
   return simulation_run_schedule_event(simulation_run, event, event_time);
 }
-
-/*******************************************************************************/
 
 void
 transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
@@ -112,52 +112,52 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
     this_packet = (Packet_Ptr)packet;
     buffer = (data->stations + this_packet->station_id)->buffer;
 
-    /* This station has stopped transmitting. */
+    /* This mobile device has stopped transmitting. */
     decrement_transmitting_stn_count(channel);
 
     /* Check if the packet was successful. */
     if (get_channel_state(channel) == SUCCESS) {
+        /* Get packet from queue */
+        this_packet = fifoqueue_get(buffer);
 
         /* Transmission was a success. The channel is now IDLE. */
         set_channel_state(channel, IDLE);
 
         TRACE(printf("Success.\n"););
 
-        ///* Schedule data packet arrival if S-ALOHA is successful **************************************************/
-
-        Packet_Ptr new_packet;
-        Fifoqueue_Ptr upload_buffer;
-        Channel_Ptr upload_channel;
-
-        new_packet = this_packet;
-
-        /* Put packet in queue */
-        upload_buffer = data->upload_queue;
-        fifoqueue_put(upload_buffer, (void*)new_packet);
-        
-        /* If upload channel is free, upload the packet*/
-        upload_channel = data->upload_channel;
-        
-        /* If this is the only packet at the station, upload it */
-        if (fifoqueue_size(upload_buffer) == 1) {
-            /* Upload the packet. */
-            schedule_transmission_start_event_upload(simulation_run, now, (void*)new_packet);
-        }
-        /**********************************************************************************************************/
-        
-        ///* Collect statistics. */
-        //data->number_of_packets_processed++;
-        (data->stations + this_packet->station_id)->packet_count++;
-        (data->stations + this_packet->station_id)->accumulated_delay +=
-            now - this_packet->arrive_time;
-        data->number_of_collisions += this_packet->collision_count;
-        data->accumulated_delay += now - this_packet->arrive_time;
+        /* Output activity blip every so often. */
         output_blip_to_screen(simulation_run);
 
-        /* This packet is done. */
-        free((void*)fifoqueue_get(buffer));
+        /* Collect Statistics */
+        double packet_delay = simulation_run_get_time(simulation_run) - this_packet->arrive_time;
 
-        /* See if there is another packet at this station. If so, enable
+        data->packets_transmitted++;
+        data->number_of_collisions += this_packet->collision_count;
+
+        (data->stations + this_packet->station_id)->packets_transmitted++;
+        (data->stations + this_packet->station_id)->number_of_collisions += this_packet->collision_count;
+
+        /* Push packet to FIFO queue at cloud server */
+
+        Packet_Ptr new_packet;
+        Fifoqueue_Ptr cloud_server_queue;
+        Server_Ptr cloud_server;
+
+        new_packet = this_packet;
+        cloud_server = data->cloud_server;
+        cloud_server_queue = data->cloud_server_queue;
+        
+        /* Start transmission if the data link is free. Otherwise put the packet into
+         * the buffer.  */
+
+        if (server_state(cloud_server) == BUSY) {
+            fifoqueue_put(cloud_server_queue, (void*)new_packet);
+        }
+        else {
+            start_processing_on_cloud_server(simulation_run, new_packet, cloud_server);
+        }
+
+        /* See if there is another packet at this mobile device. If so, enable
            it for transmission. We will transmit immediately. */
         if (fifoqueue_size(buffer) > 0) {
             next_packet = fifoqueue_see_front(buffer);
@@ -166,7 +166,6 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
                 now + GUARD_TIME,
                 (void*)next_packet);
         }
-
     }
     else {
 
@@ -191,114 +190,98 @@ transmission_end_event(Simulation_Run_Ptr simulation_run, void* packet)
             (void*)this_packet);
     }
 }
-  /******************************************************************************************************************/
 
-  long int
-      schedule_transmission_start_event_upload(Simulation_Run_Ptr simulation_run,
-          Time event_time,
-          void* packet)
-  {
-      Event event;
 
-      event.description = "Start Of Packet Data";
-      event.function = transmission_start_event_data;
-      event.attachment = packet;
+/*******************************************************************************************************************
+Event start for processing packets on cloud server
+*/
+void
+start_processing_on_cloud_server(Simulation_Run_Ptr simulation_run,
+    Packet_Ptr this_packet,
+    Server_Ptr link)
+{
+    TRACE(printf("Start Of Processing.\n");)
 
-      return simulation_run_schedule_event(simulation_run, event, event_time);
-  }
+        server_put(link, (void*)this_packet);
+    this_packet->status = TRANSMITTING;
 
-  /*******************************************************************************/
-
-  void
-      transmission_start_event_upload(Simulation_Run_Ptr simulation_run, void* ptr)
-  {
-      Packet_Ptr this_packet;
-      Simulation_Run_Data_Ptr data;
-      Channel_Ptr channel;
-
-      this_packet = (Packet_Ptr)ptr;
-      data = (Simulation_Run_Data_Ptr)simulation_run_data(simulation_run);
-      channel = data->upload_channel;
-
-      /* This packet is starting to transmit. */
-      this_packet->status = TRANSMITTING;
-
-      if (get_channel_state(channel) == IDLE) {
-          /* The channel is successful, for now. */
-          set_channel_state(channel, SUCCESS);
-
-          /* Schedule the end of packet transmission event.*/
-          schedule_transmission_end_event_data(simulation_run,
-              simulation_run_get_time(simulation_run) +
-              this_packet->upload_time, (void*)this_packet);
-      }
-
-  }
-
-  /*******************************************************************************/
-
-  long int
-      schedule_transmission_end_event_upload(Simulation_Run_Ptr simulation_run,
-          Time event_time,
-          void* packet)
-  {
-      Event event;
-
-      event.description = "End of Packet Data";
-      event.function = transmission_end_event_data;
-      event.attachment = packet;
-
-      return simulation_run_schedule_event(simulation_run, event, event_time);
-  }
-
-  /*******************************************************************************/
-
-  void
-      transmission_end_event_upload(Simulation_Run_Ptr simulation_run, void* packet)
-  {
-      Packet_Ptr this_packet, next_packet;
-      Buffer_Ptr buffer;
-      Time backoff_duration, now;
-      Simulation_Run_Data_Ptr data;
-      Channel_Ptr channel;
-
-      data = (Simulation_Run_Data_Ptr)simulation_run_data(simulation_run);
-      channel = data->upload_channel;
-
-      now = simulation_run_get_time(simulation_run);
-
-      this_packet = (Packet_Ptr)packet;
-      buffer = data->upload_queue;
-
-      /* Check if the packet was successful. */
-      if (get_channel_state(channel) == SUCCESS) {
-
-          /* Transmission was a success. The channel is now IDLE. */
-          set_channel_state(channel, IDLE);
-
-          TRACE(printf("Success.\n"););
-
-          ///* Collect statistics. */
-          data->number_of_packets_processed++;
-          data->data_accumulated_delay += now - this_packet->arrive_time;
-          //output_blip_to_screen(simulation_run);
-
-          /* This packet is done. */
-          free((void*)fifoqueue_get(buffer));
-
-          /* See if there is another packet at in the queue. If so, enable
-             it for transmission. We will transmit immediately. */
-          if (fifoqueue_size(buffer) > 0) {
-              next_packet = fifoqueue_see_front(buffer);
-
-              schedule_transmission_start_event_data(simulation_run,
-                  now,
-                  (void*)next_packet);
-          }
-
-      }
-
+    /* Schedule the end of packet processing event. */
+    schedule_end_packet_processing_event(simulation_run,
+        simulation_run_get_time(simulation_run) + this_packet->service_time,
+        (void*)link);
 }
+
+/******************************************************************************
+Event end for processing packets on cloud server
+*/
+
+long
+schedule_end_packet_processing_event(Simulation_Run_Ptr simulation_run,
+    double event_time,
+    Server_Ptr link)
+{
+    Event event;
+
+    event.description = "Packet Processing End";
+    event.function = end_packet_processing_event;
+    event.attachment = (void*)link;
+
+    return simulation_run_schedule_event(simulation_run, event, event_time);
+}
+
+void
+end_packet_processing_event(Simulation_Run_Ptr simulation_run, void* link)
+{
+    Simulation_Run_Data_Ptr data;
+    Packet_Ptr this_packet, next_packet;
+
+    TRACE(printf("End Of Packet.\n"););
+
+    data = (Simulation_Run_Data_Ptr)simulation_run_data(simulation_run);
+
+    /* Packet transmission is finished. Take the packet off the data link. */
+    this_packet = (Packet_Ptr)server_get(link);
+
+    /* Output activity blip every so often. */
+    output_blip_to_screen(simulation_run);
+
+    /* Collect statistics. */
+    double packet_delay = simulation_run_get_time(simulation_run) - this_packet->arrive_time;
+
+    data->packets_processed++;
+    data->accumulated_delay += packet_delay;
+
+    (data->stations + this_packet->station_id)->packets_processed++;
+    (data->stations + this_packet->station_id)->accumulated_delay += packet_delay;
+
+    /* This packet is done ... give the memory back. */
+    free((void*)this_packet);
+
+    /*
+     * See if there is are packets waiting in the buffer. If so, take the next one
+     * out and transmit it immediately.
+    */
+
+    if (fifoqueue_size(data->cloud_server_queue) > 0) {
+        next_packet = (Packet_Ptr)fifoqueue_get(data->cloud_server_queue);
+        start_processing_on_cloud_server(simulation_run, next_packet, link);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

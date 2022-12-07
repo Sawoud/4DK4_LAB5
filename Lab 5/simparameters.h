@@ -28,13 +28,12 @@
 /*******************************************************************************/
 
 #define NUMBER_OF_STATIONS 2
-#define MEAN_PACKET_DURATION 2      /* normalized packet Tx time, Xr */
-#define PACKET_ARRIVAL_RATE 2    /* packets per Tx time */
+#define MEAN_PACKET_DURATION 1      /* normalized packet Tx time, Xr */
+#define PACKET_ARRIVAL_RATE 0.5    /* packets per Tx time */
 #define MEAN_BACKOFF_DURATION 10    /* in units of packet transmit time, Tx */
 #define GUARD_TIME 0.01 /* reservation guard time */
 
-#define MEAN_DATA_PACKET_DURATION 1      /* normalized data packet Tx time, X */
-#define MEAN_UPLOAD_DURATION 1    /* in units of packet transmit time, Tx */
+#define MEAN_UPLOAD_DURATION 0.5    /* in units of packet transmit time, Tx */
 
 
 #define RUNLENGTH 700000

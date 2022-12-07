@@ -47,17 +47,16 @@ transmission_end_event(Simulation_Run_Ptr, void *);
 long int
 schedule_transmission_end_event(Simulation_Run_Ptr, Time, void *);
 
-void
-transmission_start_event_data(Simulation_Run_Ptr, void*);
-
-long int
-schedule_transmission_start_event_data(Simulation_Run_Ptr, Time, void*);
+/* Cloud Server */
 
 void
-transmission_end_event_data(Simulation_Run_Ptr, void*);
+start_processing_on_cloud_server(Simulation_Run_Ptr, Packet_Ptr, Server_Ptr);
+
+void
+end_packet_processing_event(Simulation_Run_Ptr, void*);
 
 long int
-schedule_transmission_end_event_data(Simulation_Run_Ptr, Time, void*);
+schedule_end_packet_processing_event(Simulation_Run_Ptr, Time, Server_Ptr);
 
 /*******************************************************************************/
 

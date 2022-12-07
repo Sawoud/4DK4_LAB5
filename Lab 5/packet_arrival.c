@@ -43,7 +43,10 @@ schedule_packet_arrival_event(Simulation_Run_Ptr simulation_run,
   return simulation_run_schedule_event(simulation_run, event, event_time);
 }
 
-/*******************************************************************************/
+/******************************************************************************
+We simulate 2 mobile devices by using 2 stations with fifo queues that transmit their packet to a
+single base station
+*/
 
 void
 packet_arrival_event(Simulation_Run_Ptr simulation_run, void* dummy_ptr) 
@@ -60,7 +63,7 @@ packet_arrival_event(Simulation_Run_Ptr simulation_run, void* dummy_ptr)
   data = (Simulation_Run_Data_Ptr) simulation_run_data(simulation_run);
   data->arrival_count++;
 
-  /* Randomly pick the station that this packet is arriving to. Note
+  /* Randomly pick the mobile device that this packet is arriving to. Note
      that randomly splitting a Poisson process creates multiple
      independent Poisson processes.*/
   random_station_id = (int) floor(uniform_generator()*NUMBER_OF_STATIONS);
@@ -73,6 +76,7 @@ packet_arrival_event(Simulation_Run_Ptr simulation_run, void* dummy_ptr)
   new_packet->collision_count = 0;
   new_packet->station_id = random_station_id;
 
+  /* Depending on the mobile device it sends to, either upload duration of U or U*10 */
   if (random_station_id == 0) {
       new_packet->upload_time = get_packet_upload_duration();
   }
@@ -80,11 +84,13 @@ packet_arrival_event(Simulation_Run_Ptr simulation_run, void* dummy_ptr)
       new_packet->upload_time = get_packet_upload_duration()*10;
   }
 
-  /* Put the packet in the buffer at that station. */
+  (data->stations + new_packet->station_id)->arrival_count++;
+
+  /* Put the packet in the buffer at the mobile device. */
   stn_buffer = station->buffer;
   fifoqueue_put(stn_buffer, (void *) new_packet);
 
-  /* If this is the only packet at the station, transmit it (i.e., the
+  /* If this is the only packet at the mobile device, transmit it (i.e., the
      ALOHA protocol). It stays in the queue either way. */
   if(fifoqueue_size(stn_buffer) == 1) {
     /* Transmit the packet. */

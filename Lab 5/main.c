@@ -63,32 +63,34 @@ main(void)
     data.stations = (Station_Ptr) xcalloc((unsigned int) NUMBER_OF_STATIONS,
 					  sizeof(Station));
 
-    /* Create and initalize FCFS buffer for data */
-    data.upload_queue = fifoqueue_new();
-
     /* Initialize various simulation_run variables. */
     data.blip_counter = 0;
     data.arrival_count = 0;
-    data.number_of_packets_processed = 0;
+    data.packets_transmitted = 0;
+    data.packets_processed = 0;
     data.number_of_collisions = 0;
     data.accumulated_delay = 0.0;
-    data.data_accumulated_delay = 0.0;
     data.random_seed = random_seed;
     
     /* Initialize the stations. */
     for(i=0; i<NUMBER_OF_STATIONS; i++) {
       (data.stations+i)->id = i;
       (data.stations+i)->buffer = fifoqueue_new();
-      (data.stations+i)->packet_count = 0;
+      (data.stations+i)->arrival_count = 0;
+      (data.stations + i)->packets_transmitted = 0;
+      (data.stations + i)->packets_processed = 0;
+      (data.stations + i)->number_of_collisions = 0;
       (data.stations+i)->accumulated_delay = 0.0;
       (data.stations+i)->mean_delay = 0;
+
     }
 
-    /* Create and initialize the channel. */
+    /* Create and initialize the channel and servers. */
     data.channel = channel_new();
-    data.upload_channel = channel_new();
+    data.cloud_server = server_new();
 
-    
+    /* Create and initalize FCFS buffer for data */
+    data.cloud_server_queue = fifoqueue_new();
 
     /* Schedule initial packet arrival. */
     schedule_packet_arrival_event(simulation_run, 
@@ -96,7 +98,7 @@ main(void)
 		    exponential_generator((double) 1/PACKET_ARRIVAL_RATE));
 
     /* Execute events until we are finished. */
-    while(data.number_of_packets_processed < RUNLENGTH) {
+    while(data.packets_processed < RUNLENGTH) {
       simulation_run_execute_event(simulation_run);
     }
 
